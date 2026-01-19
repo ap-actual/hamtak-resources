@@ -1,4 +1,4 @@
 # hamtak-resources
-Resources for HAM-related ATAK activities. Github is a bit new to me so we're going to try this out. Check out the /kmls folder for repeater KML files. Right now, the file loads well into Google Earth. We will want to clean it up for ATAK. 
+Resources for HAM-related ATAK activities. For published .kmz files, see the 'kmz' folder. 
 
-![google-earth](images/google-earth.png)
+![google-earth](images/google-earth2.png)
