@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repeater Map Utilities</title>
+    <style>
+        /* CSS STYLES */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+            line-height: 1.5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+        h2 { color: #34495e; font-size: 1.2rem; margin-top: 0; }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: #95a5a6;
+            transition: 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .input-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #7f8c8d; }
+
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        .status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #e67e22;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        hr { border: 0; border-top: 1px solid #eee; margin: 30px 0; }
+
+        .instructions {
+            background: #fffdf0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #f1c40f;
+            font-size: 0.9rem;
+            color: #444;
+        }
+
+        .instructions h3 { margin-top: 0; color: #d4ac0d; display: flex; align-items: center; }
+        .instructions ol { padding-left: 20px; }
+        .instructions li { margin-bottom: 8px; }
+
+        .file-tree {
+            background: #fff;
+            padding: 12px;
+            border: 1px dashed #d4ac0d;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Repeater Map Utilities</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab(event, 'tab1')">1. Combine Repeaterbook Files</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab2')">2. Generate doc.kml</button>
+        </div>
+
+        <div id="tab1" class="tab-content active">
+            <h2>Step 1: Data Combiner</h2>
+            <p>Combine a Repeaterbook Export CSV and KML into a single "Wide" CSV with unique links per frequency.</p>
+            
+            <div class="input-group">
+                <label>Repeaterbook CSV:</label>
+                <input type="file" id="repCsvInput" accept=".csv">
+            </div>
+
+            <div class="input-group">
+                <label>Repeaterbook KML:</label>
+                <input type="file" id="repKmlInput" accept=".kml">
+            </div>
+
+            <button id="combineBtn" disabled>Combine & Download CSV</button>
+            <p id="status1" class="status">Upload both files to begin.</p>
+        </div>
+
+        <div id="tab2" class="tab-content">
+            <h2>Step 2: KML Generator</h2>
+            <p>Upload your <b>combined_repeaters.csv</b> to generate the final map file.</p>
+            
+            <div class="input-group">
+                <label>Dataset Name:</label>
+                <input type="text" id="projectName" placeholder="Maryland_Repeaters">
+            </div>
+
+            <div class="input-group">
+                <label>Select Combined CSV:</label>
+                <input type="file" id="csvInput2" accept=".csv">
+            </div>
+
+            <button id="exportKmzBtn" disabled>Export doc.kml</button>
+            <p id="status2" class="status">Waiting for CSV...</p>
+        </div>
+
+        <hr>
+        
+        <div class="instructions">
+            <h3>How To Use</h3>
+            <p>This html file has javascript tooling to, 1. Combine .csv and .kml files from repeaterbook into a consolidated .csv file and, 2. Turn the consolidated .csv file into a .kml file for use in Google Earth / ATAK / etc. </p>
+            
+            <ol>
+                <li><strong>Tab 1:</strong> Export both a .csv and .kml from a Repeaterbook query, then use the <b>Combine</b> tab to merge your Repeaterbook CSV and KML. This generates a <i>combined repeaters csv file</i>.</li>
+                <li><strong>Tab 2:</strong> Upload that new CSV into the <b>KML Generator</b> tab and click Export to get your <b>doc.kml</b>.</li>
+                <li><strong>Folder Setup:</strong> Place the <b>doc.kml</b> from step 2 inside the provided 'icons' folder. Note that all columns in the combined CSV from step 1 must have an icon named exactly the same, with .png as its extension.</li>
+                <li><strong>Zip:</strong> Select the <b>doc.kml</b> and the <b>icons</b> folder together. Right-click and choose <i>"Compress to ZIP file"</i>.</li>
+                <li><strong>Rename:</strong> Change the file extension of your new zip file from <b>.zip</b> to <b>.kmz</b>.</li>
+            </ol>
+
+            <div class="file-tree">
+                Your Project Folder/<br>
+                ├── doc.kml<br>
+                └── icons/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├── repeater_gray.png<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├── repeater_gray.png<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;└── etc.png
+            </div>
+
+            
+                <p>You don't always need to re-run the <b>Combiner</b>. For small updates or custom data, you can edit your <i>combined_repeaters.csv</i> directly in Excel, Numbers, or Google Sheets:</p>
+                
+                <ul>
+                    <li><strong>Update Status:</strong> If you find a repeater has gone offline, simply change the <b>OnAir</b> column for that frequency from "Yes" to "No". The next time you run Step 2, the icon will automatically turn red.</li>
+                    <li><strong>Custom Notes:</strong> You can manually add notes, change tones, or update modes in the respective columns.</li>
+                    <li><strong>Add Private Repeaters:</strong> If there is a repeater not listed on Repeaterbook, just add a new row at the bottom. Fill in the Name, Lat, Lon, and at least one Frequency set.</li>
+                    <li><strong>Change Icons:</strong> You can change the <b>Icon</b> column from "repeater_gray" to any other filename (like "repeater_blue") as long as a matching .png exists in your <i>icons</i> folder.</li>
+                </ul>
+                
+                <p style="font-size: 0.8rem; color: #666;"><strong>Pro Tip:</strong> When saving your edits in Excel, always ensure you export/save as <b>CSV (Comma Delimited)</b> to keep the format compatible with the generator.</p>
+        </div>
+    </div>
+
+    <script>
+        /* JAVASCRIPT LOGIC */
+
+        function openTab(evt, tabName) {
+            const contents = document.getElementsByClassName("tab-content");
+            for (let content of contents) content.classList.remove("active");
+            const buttons = document.getElementsByClassName("tab-btn");
+            for (let btn of buttons) btn.classList.remove("active");
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        let repCsvData = "";
+        let repKmlData = "";
+        let combinedCsvData = "";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // TAB 1 Listeners
+            document.getElementById('repCsvInput').addEventListener('change', (e) => {
+                const reader = new FileReader();
+                reader.onload = (f) => { repCsvData = f.target.result; checkTab1Ready(); };
+                reader.readAsText(e.target.files[0]);
+            });
+
+            document.getElementById('repKmlInput').addEventListener('change', (e) => {
+                const reader = new FileReader();
+                reader.onload = (f) => { repKmlData = f.target.result; checkTab1Ready(); };
+                reader.readAsText(e.target.files[0]);
+            });
+
+            document.getElementById('combineBtn').addEventListener('click', runRepeaterbookCombine);
+
+            // TAB 2 Listeners
+            document.getElementById('csvInput2').addEventListener('change', (e) => {
+                const reader = new FileReader();
+                reader.onload = (f) => {
+                    combinedCsvData = f.target.result;
+                    document.getElementById('status2').innerText = "CSV Ready.";
+                    document.getElementById('exportKmzBtn').disabled = false;
+                };
+                reader.readAsText(e.target.files[0]);
+            });
+
+            document.getElementById('exportKmzBtn').addEventListener('click', generateKMLOnly);
+        });
+
+        function checkTab1Ready() {
+            if (repCsvData && repKmlData) {
+                document.getElementById('status1').innerText = "Files loaded. Ready to combine.";
+                document.getElementById('combineBtn').disabled = false;
+            }
+        }
+
+        /**
+         * STEP 1: REPEATERBOOK COMBINE
+         */
+        function runRepeaterbookCombine() {
+            const runDate = new Date().toISOString().split('T')[0];
+            const csvMap = {};
+            
+            repCsvData.split(/\r?\n/).slice(1).forEach(line => {
+                const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
+                if (c.length > 5) {
+                    const freq = parseFloat(c[0]).toFixed(4);
+                    csvMap[`${c[5]}_${freq}`] = { offset: c[2], tone: c[3], modes: c[9] };
+                }
+            });
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(repKmlData, "text/xml");
+            const placemarks = xmlDoc.getElementsByTagName("Placemark");
+            const sites = {}; 
+
+            for (let p of placemarks) {
+                const name = p.getElementsByTagName("name")[0].textContent.trim();
+                const desc = p.getElementsByTagName("description")[0].textContent;
+                const coords = p.getElementsByTagName("coordinates")[0].textContent.trim().split(",");
+                const freqRaw = (desc.match(/(\d+\.\d+)/) || ["0.0"])[0];
+                const freqFixed = parseFloat(freqRaw).toFixed(4);
+                const onAir = desc.toLowerCase().includes("on-air: no") ? "No" : "Yes";
+                const link = (desc.match(/href='([^']+)'/) || [])[1] || "";
+
+                if (!sites[name]) sites[name] = { lat: coords[1], lon: coords[0], freqs: [] };
+                const tech = csvMap[`${name}_${freqFixed}`] || { offset: "", tone: "", modes: "" };
+                
+                if (sites[name].freqs.length < 5) {
+                    sites[name].freqs.push({ link, freq: freqRaw, offset: tech.offset, tone: tech.tone, onAir, modes: tech.modes });
+                }
+            }
+
+            let csvHeader = "Date_Last_Modified,Name,Icon,Lat,Lon";
+            for(let i=1; i<=5; i++) csvHeader += `,Link${i},Freq${i},Offset${i},Tone${i},OnAir${i},Mode${i}`;
+            
+            let rows = [csvHeader];
+            for (let name in sites) {
+                let s = sites[name];
+                let row = [`"${runDate}"`, `"${name}"`, `"repeater_gray"`, `"${s.lat}"`, `"${s.lon}"`];
+                s.freqs.forEach(f => {
+                    row.push(`"${f.link}"`, `"${f.freq}"`, `"${f.offset}"`, `"${f.tone}"`, `"${f.onAir}"`, `"${f.modes}"`);
+                });
+                while (row.length < 35) row.push('""'); 
+                rows.push(row.join(","));
+            }
+
+            downloadFile(rows.join("\n"), "combined_repeaters.csv", "text/csv");
+            document.getElementById('status1').innerText = `Success! Combined ${Object.keys(sites).length} unique sites.`;
+        }
+
+        /**
+         * STEP 2: GENERATE doc.kml (with Jitter and Multi-Link logic)
+         */
+        function generateKMLOnly() {
+            const projectName = document.getElementById('projectName').value || "RepeaterMap";
+            const lines = combinedCsvData.split(/\r?\n/);
+            const uniqueIcons = new Set();
+            let placemarks = "";
+            
+            const coordTracker = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
+                if (cols.length < 5) continue;
+
+                const date = cols[0];
+                const name = cols[1];
+                const icon = cols[2];
+                let lat = parseFloat(cols[3]);
+                let lon = parseFloat(cols[4]);
+
+                // Jitter Logic
+                const coordKey = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+                if (coordTracker[coordKey]) {
+                    const count = coordTracker[coordKey];
+                    const angle = count * (Math.PI / 4);
+                    const radius = 0.000015; // ~5 feet
+                    lat += Math.cos(angle) * radius;
+                    lon += Math.sin(angle) * radius;
+                    coordTracker[coordKey]++;
+                } else {
+                    coordTracker[coordKey] = 1;
+                }
+
+                let freqTable = `<table border="1" style="border-collapse:collapse; width:100%; font-size:11px; margin-top:8px;">
+                    <tr style="background:#f2f2f2;"><th>Freq</th><th>Tone</th><th>Air</th><th>Mode</th><th>Link</th></tr>`;
+                
+                let allOffline = true, hasAnyData = false;
+
+                for (let j = 0; j < 5; j++) {
+                    let start = 5 + (j * 6);
+                    if (cols[start + 1]) {
+                        hasAnyData = true;
+                        const link = cols[start], f = cols[start+1], t = cols[start+3], oa = cols[start+4], m = cols[start+5];
+                        const statusColor = oa.toLowerCase() === 'no' ? 'color:red;' : 'color:green;';
+                        freqTable += `<tr><td>${f}</td><td>${t}</td><td style="${statusColor}"><b>${oa}</b></td><td>${m}</td><td><a href="${link}">View</a></td></tr>`;
+                        if (oa.toLowerCase() === "yes") allOffline = false;
+                    }
+                }
+                freqTable += `</table>`;
+
+                const styleId = (hasAnyData && allOffline) ? "repeater_red" : icon.replace(/\s+/g, '_');
+                uniqueIcons.add(styleId);
+
+                placemarks += `<Placemark>
+                    <name>${name}</name>
+                    <styleUrl>#${styleId}</styleUrl>
+                    <description><![CDATA[
+                      <div style="min-width:300px; font-family:sans-serif;">
+                        <h3 style="margin:0;">${name}</h3>
+                        <span style="font-size:10px; color:#999;">Updated: ${date}</span>
+                        ${freqTable}
+                      </div>
+                    ]]></description>
+                    <Point><coordinates>${lon},${lat},0</coordinates></Point>
+                </Placemark>`;
+            }
+
+            let styleBlocks = "";
+            uniqueIcons.forEach(s => styleBlocks += `<Style id="${s}"><IconStyle><scale>1.1</scale><Icon><href>icons/${s}.png</href></Icon></IconStyle></Style>`);
+
+            const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${projectName}</name>${styleBlocks}<Folder><name>Repeaters</name>${placemarks}</Folder></Document></kml>`;
+            downloadFile(kml, "doc.kml", "application/vnd.google-earth.kml+xml");
+            document.getElementById('status2').innerText = "Exported Successfully!";
+        }
+
+        function downloadFile(content, name, type) {
+            const blob = new Blob([content], { type });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = name;
+            link.click();
+        }
+    </script>
+</body>
+</html>
