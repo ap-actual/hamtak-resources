@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W3APL HAM Console</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
+    <script src="https://unpkg.com/@joergdietrich/leaflet.terminator"></script>
+    
+    <style>
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+        #map { height: 100vh; width: 100%; background: #000; }
+
+        .panel {
+            position: absolute; z-index: 1000; background: rgba(0, 15, 0, 0.9);
+            border: 1px solid #0f0; padding: 15px; pointer-events: auto;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3); cursor: move; user-select: none;
+        }
+
+        #clock-box { top: 20px; left: 20px; resize: both; overflow: hidden; min-width: 220px; min-height: 130px; width: 280px; }
+        #controls { top: 280px; left: 20px; width: 200px; }
+        
+        /* New Solar Panel Styles */
+        #solar-panel { top: 20px; right: 20px; width: 200px; height: auto; resize: both; overflow: hidden; padding: 10px; }
+        #solar-panel img { width: 100%; height: auto; display: block; }
+        
+        .panel::after { content: "◢"; position: absolute; bottom: 2px; right: 2px; color: #0f0; font-size: 12px; pointer-events: none; }
+
+        #utc-time { color: #fff; border-bottom: 1px solid #040; margin-bottom: 5px; white-space: nowrap; font-weight: bold;}
+        #local-time { white-space: nowrap; }
+        .label { font-size: 0.75em; color: #888; text-transform: uppercase; display: block; margin-top: 5px;}
+        
+        select, input { background: #000; color: #0f0; border: 1px solid #050; cursor: pointer; margin-top: 10px; font-family: inherit; width: 100%; }
+        .iss-label { background: transparent !important; border: none !important; box-shadow: none !important; color: #0f0 !important; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+    </style>
+</head>
+<body>
+
+    <div id="clock-box" class="panel">
+        <div class="label">Universal Time (UTC)</div>
+        <div id="utc-time">00:00:00</div>
+        <div class="label">Station Local Time</div>
+        <div id="local-time">00:00:00</div>
+        <select id="tz-select">
+            <option value="America/New_York">EST (UTC-5)</option>
+            <option value="America/Chicago">CST (UTC-6)</option>
+            <option value="Europe/London">GMT/BST</option>
+            <option value="UTC">UTC</option>
+        </select>
+    </div>
+
+    <div id="solar-panel" class="panel">
+        <center>
+            <a href="https://www.hamqsl.com/solar.html" title="Click to add Solar-Terrestrial Data to your website!"><img src="https://www.hamqsl.com/solarvhf.php"></a>
+        </center>
+    </div>
+
+    <div id="controls" class="panel">
+        <b style="color: #fff; font-size: 1.1em;">Page Settings</b><br>
+        
+        <span class="label">Map Background:</span>
+        <select id="map-select" onchange="changeMap()">
+            <option value="dark">Dark Matter (Clean)</option>
+            <option value="sat">Satellite (Detailed)</option>
+            <option value="topo">Topographic</option>
+        </select>
+
+        <span class="label">Orbit Projection:</span>
+        <select id="orbitCount" onchange="renderAll()">
+            <option value="1">1 Orbit</option>
+            <option value="2">2 Orbits</option>
+        </select>
+
+        <label style="cursor:pointer; margin-top:10px; display:block;">
+            <input type="checkbox" id="showFootprints" checked onchange="renderAll()" style="width:auto;"> 
+            <span class="label" style="display:inline;">Display Swath</span>
+        </label>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        /** 1. DRAG LOGIC **/
+        function dragElement(elmnt) {
+            let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+            elmnt.onmousedown = function(e) {
+                const rect = elmnt.getBoundingClientRect();
+                if (rect.right - e.clientX < 25 && rect.bottom - e.clientY < 25) return; 
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.tagName === 'A' || e.target.tagName === 'IMG') {
+                    // Only allow drag on images/links if user holds shift or we target the panel itself
+                    // To keep it simple, we allow drag if they aren't clicking the resize corner
+                }
+                
+                p3 = e.clientX; p4 = e.clientY;
+                document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+                document.onmousemove = (e) => {
+                    e.preventDefault();
+                    p1 = p3 - e.clientX; p2 = p4 - e.clientY;
+                    p3 = e.clientX; p4 = e.clientY;
+                    elmnt.style.top = (elmnt.offsetTop - p2) + "px";
+                    elmnt.style.left = (elmnt.offsetLeft - p1) + "px";
+                };
+            };
+        }
+
+        /** 2. CLOCK & RESIZE **/
+        function updateClocks() {
+            const now = new Date();
+            const tz = document.getElementById('tz-select').value;
+            document.getElementById('utc-time').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false });
+            document.getElementById('local-time').innerText = now.toLocaleTimeString('en-GB', { timeZone: tz, hour12: false });
+            const box = document.getElementById('clock-box');
+            const fSize = box.offsetWidth / 11; 
+            document.getElementById('utc-time').style.fontSize = (fSize * 1.2) + 'px';
+            document.getElementById('local-time').style.fontSize = fSize + 'px';
+        }
+
+        /** 3. MAP & TRACKING **/
+        let map, marker, footprintCircle, terminator, baseLayer;
+        let orbitLayer = L.featureGroup(), swathLayer = L.featureGroup();
+        let tle = { line1: '', line2: '' };
+        const CONFIG = { R: 6371, minElev: 10, step: 2 };
+
+        const maps = {
+            dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            sat: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            topo: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+        };
+
+        function changeMap() {
+            const val = document.getElementById('map-select').value;
+            if (baseLayer) map.removeLayer(baseLayer);
+            baseLayer = L.tileLayer(maps[val]).addTo(map);
+        }
+
+        function initMap() {
+            map = L.map('map', { 
+                center: [20, 0], zoom: 3, minZoom: 2, maxZoom: 10,
+                maxBounds: [[-85, -180], [85, 180]], maxBoundsViscosity: 1.0,
+                zoomControl: false, worldCopyJump: false
+            });
+            L.control.zoom({ position: 'topright' }).addTo(map);
+            changeMap();
+            
+            terminator = L.terminator({ fillOpacity: 0.35, color: '#000' }).addTo(map);
+            setInterval(() => { terminator.setTime(); }, 60000);
+
+            swathLayer.addTo(map); orbitLayer.addTo(map);
+            marker = L.circleMarker([0,0], { radius: 6, color: '#fff', fillColor: '#0f0', fillOpacity: 1, weight: 2 }).addTo(map);
+            marker.bindTooltip("ISS", { permanent: true, direction: 'right', offset: [12, 0], className: 'iss-label' });
+            footprintCircle = L.circle([0,0], { color: '#3388ff', weight: 1.5, fillOpacity: 0.1, dashArray: '5,10' }).addTo(map);
+        }
+
+        function getRadius(alt) {
+            const e = CONFIG.minElev * Math.PI / 180;
+            return (Math.acos((CONFIG.R / (CONFIG.R + alt)) * Math.cos(e)) - e) * CONFIG.R;
+        }
+
+        function getSatPos(date) {
+            if (!tle.line1) return null;
+            const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+            const pv = satellite.propagate(satrec, date);
+            const gmst = satellite.gstime(date);
+            const gd = satellite.eciToGeodetic(pv.position, gmst);
+            return { lat: satellite.degreesLat(gd.latitude), lng: satellite.degreesLong(gd.longitude), alt: gd.height };
+        }
+
+        async function fetchTLE() {
+            try {
+                const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544/tles');
+                const data = await res.json();
+                tle.line1 = data.line1; tle.line2 = data.line2;
+                renderAll();
+            } catch (e) { console.error(e); }
+        }
+
+        function renderAll() {
+            const pos = getSatPos(new Date());
+            if (!pos) return;
+            marker.setLatLng([pos.lat, pos.lng]);
+            footprintCircle.setLatLng([pos.lat, pos.lng]).setRadius(getRadius(pos.alt) * 1000);
+            const num = document.getElementById('orbitCount').value;
+            const showSwath = document.getElementById('showFootprints').checked;
+            orbitLayer.clearLayers(); swathLayer.clearLayers();
+            let seg = [], lastLng = null;
+            for (let i = 0; i <= 93 * num; i += CONFIG.step) {
+                const p = getSatPos(new Date(Date.now() + i * 60000));
+                if (lastLng !== null && Math.abs(p.lng - lastLng) > 180) { drawPath(seg, showSwath); seg = []; }
+                seg.push(p); lastLng = p.lng;
+            }
+            drawPath(seg, showSwath);
+        }
+
+        function drawPath(path, showSwath) {
+            if (path.length < 2) return;
+            const coords = path.map(p => [p.lat, p.lng]);
+            if (showSwath) {
+                const Ls = [], Rs = [];
+                path.forEach(p => {
+                    const off = getRadius(p.alt) / 111;
+                    Ls.push([p.lat + off, p.lng]); Rs.unshift([p.lat - off, p.lng]);
+                });
+                L.polygon(Ls.concat(Rs), { color: '#3388ff', weight: 0, fillOpacity: 0.12 }).addTo(swathLayer);
+            }
+            L.polyline(coords, { color: '#0f0', weight: 1.5, opacity: 0.4 }).addTo(orbitLayer);
+        }
+
+        initMap(); fetchTLE();
+        setInterval(updateClocks, 1000);
+        setInterval(renderAll, 15000);
+        dragElement(document.getElementById("clock-box"));
+        dragElement(document.getElementById("controls"));
+        dragElement(document.getElementById("solar-panel"));
+    </script>
+</body>
+</html>
